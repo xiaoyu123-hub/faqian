@@ -1,0 +1,51 @@
+name: Update Cloudflare优选IP List
+
+on:
+  schedule:
+    # 每6小时检查一次，可根据需要修改 cron 表达式
+    - cron: '0 */6 * * *'
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 授予推送代码的权限
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download remote file
+        run: |
+          curl -s -o remote_file.txt "https://raw.githubusercontent.com/Alvin9999-newpac/fanqiang/refs/heads/main/cloudflare%E4%BC%98%E9%80%89ip"
+
+      - name: Check for changes
+        id: check
+        run: |
+          if [ -f cloudflare_ip.txt ]; then
+            if cmp -s remote_file.txt cloudflare_ip.txt; then
+              echo "No changes detected"
+              echo "changed=false" >> $GITHUB_OUTPUT
+            else
+              echo "Changes detected"
+              echo "changed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Local file not found, will create it"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update local file
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          mv remote_file.txt cloudflare_ip.txt
+
+      - name: Commit and push changes
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloudflare_ip.txt
+          git commit -m "Update Cloudflare优选IP list"
+          git push
